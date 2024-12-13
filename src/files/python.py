@@ -108,3 +108,10 @@ if __name__ == '__main__':
     
 # explain the genrate_answer function
 
+
+# get the record_audio_chunk function code
+
+# what are the use cases for genie
+
+
+
