@@ -115,3 +115,133 @@ if __name__ == '__main__':
 
 
 
+
+import os
+import PyPDF2
+from chromadb import ChromaDB
+from langchain import Langchain
+from langchain.llms import GPT4o
+
+class PDFRAG:
+    def __init__(self, pdf_directory, chroma_db_path):
+        self.pdf_directory = pdf_directory
+        self.chroma_db = ChromaDB(chroma_db_path)
+        self.langchain = Langchain()
+        self.llm = GPT4o()
+
+    def extract_text_from_pdfs(self):
+        documents = []
+        for filename in os.listdir(self.pdf_directory):
+            if filename.endswith('.pdf'):
+                filepath = os.path.join(self.pdf_directory, filename)
+                with open(filepath, 'rb') as pdf_file:
+                    reader = PyPDF2.PdfReader(pdf_file)
+                    text = ''
+                    for page in reader.pages:
+                        text += page.extract_text()
+                    documents.append({'title': filename, 'content': text})
+        return documents
+
+    def store_documents_in_chromadb(self, documents):
+        for doc in documents:
+            # Ensure each document is added to ChromaDB
+            self.chroma_db.add_document(doc['title'], doc['content'])
+
+    def generate_response(self, query):
+        # Use Langchain to create a retrieval chain
+        retrieval_chain = self.langchain.create_chain(self.chroma_db, self.llm)
+        response = retrieval_chain.run(query)
+        return response
+
+    def run_rag_pipeline(self, query):
+        documents = self.extract_text_from_pdfs()
+        self.store_documents_in_chromadb(documents)
+        return self.generate_response(query)
+
+# Usage example
+rag = PDFRAG(pdf_directory='./pdfs', chroma_db_path='./chroma_db')
+response = rag.run_rag_pipeline(query='What is the main topic in these documents?')
+print(response)
+
+
+
+
+
+# explain the ingestion pipeline in RAG_SYN
+
+
+
+
+
+# Requirement: Implement RAG over PDF documents using ChromaDB, Langchain, and GPT-4o in Python.
+
+import os
+import PyPDF2
+from chromadb import ChromaDB
+from langchain import Langchain
+from gpt4o import GPT4o
+
+class PDFRAGSystem:
+    def __init__(self, pdf_directory):
+        self.pdf_directory = pdf_directory
+        self.chroma_db = ChromaDB()
+        self.langchain = Langchain()
+        self.gpt4o = GPT4o()
+
+    def load_pdfs(self):
+        pdf_files = [f for f in os.listdir(self.pdf_directory) if f.endswith('.pdf')]
+        documents = {}
+        for pdf_file in pdf_files:
+            pdf_path = os.path.join(self.pdf_directory, pdf_file)
+            try:
+                with open(pdf_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    text = ''
+                    for page in range(len(pdf_reader.pages)):
+                        text += pdf_reader.pages[page].extract_text() or ''
+                documents[pdf_file] = text
+            except Exception as e:
+                print(f"Error reading {pdf_file}: {e}")
+        return documents
+
+    def index_documents(self, documents):
+        for title, content in documents.items():
+            self.chroma_db.index_document(title, content)
+
+    def query_documents(self, query):
+        # Retrieve relevant documents
+        results = self.chroma_db.query(query)
+        # Use Langchain to refine the results
+        refined_results = self.langchain.process_results(results)
+        # Generate final output with GPT-4o
+        final_output = self.gpt4o.generate_response(refined_results)
+        return final_output
+
+    def execute_query(self, query):
+        documents = self.load_pdfs()
+        self.index_documents(documents)
+        return self.query_documents(query)
+
+# Usage example:
+# pdf_rag_system = PDFRAGSystem(pdf_directory='/path/to/pdf/files')
+# response = pdf_rag_system.execute_query('What is the content about?')
+# print(response)
+
+# Note: This code assumes that ChromaDB, Langchain, and GPT4o libraries have appropriate methods such as
+# `index_document`, `query`, `process_results`, and `generate_response` implemented.
+
+
+# What are the features and architecture for aks cluster
+
+
+# explain the ingestion pipeline in RAG_SYN
+# Requirement: Implement RAG over PDF documents using ChromaDB, Langchain, and GPT-4o in Python.
+
+
+# What is soot diff process of comparing java programs
+ 
+# What are the features and architecture for aks cluster
+
+explain leave policy
+
+What is dry lab
