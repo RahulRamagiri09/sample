@@ -1,1 +1,1 @@
-print("hihjkgi")
+print("hihkgi")
