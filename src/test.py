@@ -1,2 +1,2 @@
 print("hihkgi")
-print("hihkgiwrthj")
+print("hihkgrthj")
