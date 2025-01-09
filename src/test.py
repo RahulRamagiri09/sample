@@ -1,2 +1,2 @@
-print("hihdsfujkmkgi")
+print("hihfujkmkgi")
 print("hisdfbhk")
