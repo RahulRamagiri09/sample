@@ -5,9 +5,8 @@ def greet(name="Guest"):
     return f"Hello, {name}!"
 
 
-def add_numbers(a, b):
-    return a + b
-
+def add_numbers(a, b, c):
+    return a + b + c
 import datetime
 print(datetime.datetime.now(datetime.UTC))
 
