@@ -1,0 +1,135 @@
+#!/bin/bash
+# Check Python availability
+if command -v python3 > /dev/null 2>&1; then
+   python_cmd="python3"
+elif command -v python > /dev/null 2>&1; then
+   python_cmd="python"
+else
+   echo "WARNING: Python3 is not installed. Commit review functionality will not work."
+   exit 1
+fi
+ 
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+ 
+# Function to display a Tkinter message box with scrollable text
+show_scrollable_message_box() {
+    local message="$1"
+    $python_cmd - <<EOF
+import tkinter as tk
+from tkinter.scrolledtext import ScrolledText
+ 
+def show_message():
+    root = tk.Tk()
+    root.title("Genie GitHooks")
+    text_area = ScrolledText(root, wrap=tk.WORD, width=80, height=20)
+    text_area.pack(expand=True, fill='both')
+    text_area.insert(tk.END, '$message')
+    text_area.configure(state='disabled')
+    root.mainloop()
+ 
+show_message()
+EOF
+}
+ 
+# Check if Git is installed
+if ! command_exists git; then
+    show_scrollable_message_box "Error: Git is not installed. Please install Git before proceeding."
+    exit 1
+fi
+
+
+# Check if Git global username and email are set
+GIT_USERNAME=$(git config --global user.name)
+GIT_EMAIL=$(git config --global user.email)
+ 
+if [ -z "$GIT_USERNAME" ] || [ -z "$GIT_EMAIL" ]; then
+    show_scrollable_message_box 'Error: Git global username and/or email is not set.\nPlease configure them using: \n git config --global user.name "Your Name" \n git config --global user.email  "you@example.com"'
+    exit 1
+fi
+ 
+# Get all files in the repository
+all_files=$(git ls-files)
+repo_name=$(git config --get remote.origin.url | sed 's#.*/##;s/.git//')
+echo $repo_name
+# Function to batch files and make asynchronous API calls
+batch_size=100  # Define the batch size
+responses=()
+ 
+batch_files() {
+    local files=("$@")
+    local total_files=${#files[@]}
+    local start=0
+ 
+    while [ $start -lt $total_files ]; do
+        local end=$((start + batch_size))
+        local batch=("${files[@]:start:batch_size}")
+        send_batch "${batch[@]}"
+        start=$end
+    done
+}
+ 
+send_batch() {
+    local batch=("$@")
+    local batch_json=$(printf '%s\n' "${batch[@]}" | sed 's/^/"/; s/$/"/' | paste -sd, - | sed 's/^/[/' | sed 's/$/]/')
+ 
+    # Prepare JSON payload
+    local json_payload=$(cat <<EOF
+{
+    "all_files": $batch_json,
+    "reponame": "$repo_name",
+    "user_id": "${userId}"
+}
+EOF
+)
+ 
+    local api_url="http://0.0.0.0:3000/review/repo-scan"
+    local json_file=$(mktemp)
+    echo "$json_payload" > "$json_file"
+    local response=$(curl -s -X POST -H "Content-Type: application/json" -d @"$json_file" "$api_url")
+    rm "$json_file"
+ 
+    # Collect responses
+    responses+=("$response")
+}
+ 
+# Convert all files to an array
+IFS=$'\n' read -r -d '' -a files_array <<< "$all_files"
+ 
+# Batch the files and make API calls
+batch_files "${files_array[@]}"
+
+echo $batch_files
+# Merge responses
+merged_secrets=""
+for response in "${responses[@]}"; do
+    has_secrets=$($python_cmd -c "import json, sys; data = json.loads(sys.stdin.read()); print(data.get('has_secrets', 'false'))" <<< "$response")
+    list_secrets_found=$($python_cmd -c "
+import json, sys
+data = json.loads(sys.stdin.read())
+secrets = [
+    '\\n'.join([
+        '-' * 30,
+        f'File: {item[\"filename\"]}',
+        f'Pattern: Potential Secret',
+        f'Content: {item[\"line_content\"]}'
+    ])
+    for item in data.get('list_secrets_found', [])
+]
+print('\\n'.join(secrets))
+" <<< "$response")
+ 
+    # Append to merged secrets
+    if [[ "$has_secrets" == "true" ]]; then
+        merged_secrets+="$list_secrets_found\n"
+    fi
+done
+ 
+# Display merged secrets
+if [[ -n "$merged_secrets" ]]; then
+    show_scrollable_message_box "Secrets detected in repository files!\n$merged_secrets"
+fi
+ 
+exit 0
