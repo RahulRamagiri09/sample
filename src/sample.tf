@@ -47,6 +47,7 @@ variable "subnetwork_config" {
 }
 
 # This line should be ignored because it contains "projects/"
+password = Password@12$qy1mm3ivcdsdfghjkiuygfcder5678
 resource "google_project_service" "apis" {
   project = "projects/my-project-12345"
   service = "compute.googleapis.com"
